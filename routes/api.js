@@ -362,18 +362,21 @@ router.get('/articles/:slug/comments',jwt.verifyToken,async (req,res,next) => {
 
 // deleting comment
 
-router.delete('/articles/:slug/comments/:id',jwt.verifyToken,(req,res,next) => {
+router.delete('/articles/:slug/comments/:id',jwt.verifyToken, async (req,res,next) => {
   const slug = req.params.slug;
   const id = req.params.id;
   console.log('hello from delete')
 
-  Article.findOneAndUpdate({slug:slug},{$pull : {comments : `${id}`}},(err,article) => {
-    Comment.findByIdAndDelete({_id : id},(err,comment) => {
-      if(err) return next();
-      res.json({message:comment.id + 'is deleted'})
-    })
-   
-  })
+  try {
+      const article = await Article.findOneAndUpdate({slug:slug},{$pull : {comments : `${id}`}});
+      const comment = await Comment.findByIdAndDelete({_id : id})
+
+      res.json({message: 'your comment is deleted'});
+  } catch (error) {
+      next(error)
+  }
+
+
 
   
 })
@@ -381,61 +384,50 @@ router.delete('/articles/:slug/comments/:id',jwt.verifyToken,(req,res,next) => {
 
 //favorite article
 
-router.post('/articles/:slug/favorite',jwt.verifyToken,(req,res,next) => {
+router.post('/articles/:slug/favorite',jwt.verifyToken, async (req,res,next) => {
 
     const slug = req.params.slug;
 
    console.log(req.user);
-    Article.findOneAndUpdate({slug:slug},{$set : {'favorited':true},$inc : {"favoritesCount": 1}},{new:true},(err,article) => {
-       if(err) return next();
-       User.findByIdAndUpdate({_id : req.user.userId},{$push : {"favoriteArticles" : article.id }},(err,user) => {
-            if(err) return next();
-            res.json({article:article});
-
-       })
-       
-      
-    })
-
-
-
+    try {
+        const article = await Article.findOneAndUpdate({slug:slug},{$set : {'favorited':true},$inc : {favoritesCount : 1}},{new:true});
+        const user = await User.findByIdAndUpdate({_id:req.user.userId},{$push : {favoriteArticles : article.id}},{new:true});
+        res.json({article:article})
+    } catch (error) {
+        next(error)
+    }
 })
 
 
 // unfavorite article
 
-router.delete('/articles/:slug/favorite',jwt.verifyToken,(req,res,next) => {
+router.delete('/articles/:slug/favorite',jwt.verifyToken, async (req,res,next) => {
   const slug = req.params.slug;
 
-  Article.findOneAndUpdate({slug:slug},{$set:{'favorited' : false},$inc : {'favoritesCount': -1}},{new:true},(err,article) => {
-    if(err) return next();
+   try {
+       const article = await Article.findOneAndUpdate({slug:slug},{$set : {'favorited':false},$inc : {favoritesCount: -1}},{new:true});
+       res.json({article:article})
+   } catch (error) {
+       next(error)
+   }
 
-    res.json({article:article})
-  })
 })
 
 
 
 //get the list of tags
 
-router.get('/tags',(req,res,next) => {
+router.get('/tags', async (req,res,next) => {
+
+  try {
+      const tags = await Article.distinct('tagList');
+      res.json({tags:tags})
+  } catch (error) {
+      next(error)
+  }
 
 
-  Article.distinct('tagList',(err,tags) => {
-    if(err) return next();
-    res.json({tags:tags})
-  })
 })
-
-
-
-
-
-
-
-
-
-
 
 
 
