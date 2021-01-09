@@ -10,7 +10,7 @@ require('dotenv').config();
 
 //connecting to mongodb
 
-mongoose.connect('mongodb://localhost/conduit',{useNewUrlParser:true,useUnifiedTopology:true},
+mongoose.connect(process.env.MONGODB_URL,{useNewUrlParser:true,useUnifiedTopology:true},
 (err) => {
   console.log(err ? err : 'database connected')
 });
