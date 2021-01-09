@@ -6,33 +6,42 @@ const Comment = require('../models/Comment');
 const jwt = require('../module/token');
 const { comment } = require('postcss');
 const mongooseSlugGenerator = require('mongoose-slug-generator');
-const mongoose = require('mongoose')
+const mongoose = require('mongoose');
+const { findOne } = require('../models/User');
+
+
+
+
+
+
+
+
 
 //registering the user
 
 router.post('/users', async (req,res,next) => {
-    try {
-        const user = await  User.create(req.body.user);
-        const token = await jwt.generateJwt(user);
-        user.token = token
-        console.log(token);
-      res.json({user:{...userInfo(user),token}})
-    } catch (error) {
-        next(error)
-    }
+  try {
+      const user = await  User.create(req.body.user);
+      const token = await jwt.generateJwt(user);
+      user.token = token
+      console.log(token);
+    res.json({user:{...userInfo(user),token}})
+  } catch (error) {
+      next(error)
+  }
 
 })
 
 
 //function to show userinfo
 function userInfo(user){
-   return {
-    email:user.email,
-    username:user.username,
-    bio:user.bio,
-    image:user.image,
-   
-   }
+ return {
+  email:user.email,
+  username:user.username,
+  bio:user.bio,
+  image:user.image,
+ 
+ }
 }
 
 
@@ -40,21 +49,21 @@ function userInfo(user){
 //login the user
 
 router.post('/users/login',async (req,res,next) => {
-    const {email,password} = req.body.user;
-   try {
-        if(email && password){
-            const user = await User.findOne({email:email});
-            if(user.verifyPassword(password)){
-                    const token = await jwt.generateJwt(user);
-                    
-                    res.json({user:{...userInfo(user),token}});
-            }
-        }else{
-            res.json({error:'email and password required'});
-        }
-   } catch (error) {
-       next(error);
-   }
+  const {email,password} = req.body.user;
+ try {
+      if(email && password){
+          const user = await User.findOne({email:email});
+          if(user.verifyPassword(password)){
+                  const token = await jwt.generateJwt(user);
+                  
+                  res.json({user:{...userInfo(user),token}});
+          }
+      }else{
+          res.json({error:'email and password required'});
+      }
+ } catch (error) {
+     next(error);
+ }
 })
 
 
@@ -63,31 +72,33 @@ router.post('/users/login',async (req,res,next) => {
 //get current user
 
 router.get('/user',jwt.verifyToken,async (req,res,next) => {
-    const currentUser = req.user;
-    console.log(currentUser)
-   try {
-        const user = await User.findById({_id:currentUser.userId});
-        res.json({user:userInfo(user)});
-   } catch (error) {
-       next(error);
-   }
-    
+  const currentUser = req.user;
+  console.log(currentUser)
+ try {
+      const user = await User.findById({_id:currentUser.userId});
+      res.json({user:userInfo(user)});
+ } catch (error) {
+     next(error);
+ }
+  
 })
 
 //update the user
 
 router.put('/user',jwt.verifyToken, async (req,res,next) => {
-    const currentUser = req.user;
+  const currentUser = req.user;
 
-    try {
-        const user = await User.findByIdAndUpdate(currentUser.userId,req.body.user,{next:true});
-        res.json({user:userInfo(user)});
-    } catch (error) {
-        next(error);
-    }
+  try {
+      const user = await User.findByIdAndUpdate(currentUser.userId,req.body.user,{next:true});
+      res.json({user:userInfo(user)});
+  } catch (error) {
+      next(error);
+  }
 
 
 })
+
+
 
 
 
@@ -147,6 +158,10 @@ router.delete('/profiles/:username/follow',jwt.verifyToken,async (req,res,next) 
     }
 
 })
+
+
+
+
 
 
 
@@ -279,159 +294,179 @@ router.get('/articles', async (req,res,next) => {
   console.log(req.query.user)
   const tag = req.query.tag;
   const author = req.query.author;
-  const favoriteUser = req.query.user;
+  const favoriteUser = req.query.favorited;
   const limit = req.query.limit ?? 20;
   const skip = req.query.offset ?? 0;
   const filters = {};
+   const filteredArticles = [];
 
-    try {
-        if(req.query.tag){
-            filters["tagList"] = tag;        
-        }
-        if(author){
-          const user = await User.findOne({username:author});
-            filters["username"] = user.username;     
-        }
-        if(req.query.user){
-            const user = await User.findOne({username:req.query.user});
+   try {
+        if(tag){
+            filters.tagList = tag;
+            const articles = await Article.find({tagList: {$all : [tag]}}).sort({_id:-1}).populate('author')
+            articles.forEach((article) => {
+                filteredArticles.push(articleView(article,profileView(article.author)))
+            })
 
-            filters["username"] = user.username;                  
-        }          
-            console.log(filters)
-   const articles = await Article.find(filters)
-          
-            console.log(articles)
+            if(author){
+                console.log(author)
+                const user = await User.findOne({username:author});
+                const articles = await Article.find({author:user._id}).sort({_id:-1}).populate('author');
+                articles.forEach((article) => {
+                    filteredArticles.push(articleView(article,profileView(article.author)))
+                })
+            }
+    
+            if(favoriteUser){
+                const user = await User.findOne({username:favoriteUser});
+                const articles = await Article.find({author:user.id}).sort({_id:-1}).populate('author');
+                articles.forEach((article) => {
+                    filteredArticles.push(articleView(article,profileView(article.author)))
+                })
+                
+            }
+            res.json({articles:filteredArticles,articlesCount:filteredArticles.length})
+             
+
+        }else{
+            const articles = await Article.find({}).sort({_id:-1}).populate('author');
+            articles.forEach((article) => {
+                filteredArticles.push(articleView(article,profileView(article.author)))
+            })
+            res.json({articles:filteredArticles,articlesCount:filteredArticles.length})
+        }
+
+
         
-        res.json({articles:articles})
-    } catch (error) {
-        next(error)
-    }
+                
+   } catch (error) {
+     next(error)  
+   }
+
 })
-
-
-
 
 
 // //comment view
 
 function commentView(comment,author){
-  return{
-    id:comment._id,
-    createdAt:comment.createdAt,
-    updatedAt:comment.updatedAt,
-    body:comment.body,
-    author:author
+    return{
+      id:comment._id,
+      createdAt:comment.createdAt,
+      updatedAt:comment.updatedAt,
+      body:comment.body,
+      author:author
+    }
   }
-}
-
-
-//adding comments to articles
-
-router.post('/articles/:slug/comments',jwt.verifyToken, async (req,res,next) => {
-  const slug = req.params.slug; 
-   const currentUser = req.user;   
-   req.body.comment.author = req.user.userId;
-   try {
-      const comment = await Comment.create(req.body.comment);
-     
-      const user = await  User.findOne({email:currentUser.email});
-      const article = await Article.findOneAndUpdate({slug:slug},{$push : {comments : comment._id}});
-      res.json({comment:commentView(comment,profileView(user))})
-   } catch (error) {
-       next(error)
-   }
-})
-
-
-// showing all comments
-
-router.get('/articles/:slug/comments',jwt.verifyToken,async (req,res,next) => {
-  const slug = req.params.slug;
-
-  try {
-      const comments = await Article.findOne({slug:slug}).populate('comments')
-      res.json({comments:comments})
-  } catch (error) {
-      next(error)
-  }
- 
-
-});
-
-
-
-// deleting comment
-
-router.delete('/articles/:slug/comments/:id',jwt.verifyToken, async (req,res,next) => {
-  const slug = req.params.slug;
-  const id = req.params.id;
-  console.log('hello from delete')
-
-  try {
-      const article = await Article.findOneAndUpdate({slug:slug},{$pull : {comments : `${id}`}});
-      const comment = await Comment.findByIdAndDelete({_id : id})
-
-      res.json({message: 'your comment is deleted'});
-  } catch (error) {
-      next(error)
-  }
-
-
-
   
-})
+  
+  //adding comments to articles
+  
+  router.post('/articles/:slug/comments',jwt.verifyToken, async (req,res,next) => {
+    const slug = req.params.slug; 
+     const currentUser = req.user;   
+     req.body.comment.author = req.user.userId;
+     try {
+        const comment = await Comment.create(req.body.comment);
+       
+        const user = await  User.findOne({email:currentUser.email});
+        const article = await Article.findOneAndUpdate({slug:slug},{$push : {comments : comment._id}});
+        res.json({comment:commentView(comment,profileView(user))})
+     } catch (error) {
+         next(error)
+     }
+  })
+  
+  
+  // showing all comments
+  
+  router.get('/articles/:slug/comments',jwt.verifyToken,async (req,res,next) => {
+    const slug = req.params.slug;
+  
+    try {
+        const comments = await Article.findOne({slug:slug}).populate('comments')
+        res.json({comments:comments})
+    } catch (error) {
+        next(error)
+    }
+   
+  
+  });
+  
+  
+  
+  // deleting comment
+  
+  router.delete('/articles/:slug/comments/:id',jwt.verifyToken, async (req,res,next) => {
+    const slug = req.params.slug;
+    const id = req.params.id;
+    console.log('hello from delete')
+  
+    try {
+        const article = await Article.findOneAndUpdate({slug:slug},{$pull : {comments : `${id}`}});
+        const comment = await Comment.findByIdAndDelete({_id : id})
+  
+        res.json({message: 'your comment is deleted'});
+    } catch (error) {
+        next(error)
+    }
+  
+  
+  
+    
+  })
 
 
 //favorite article
 
-router.post('/articles/:slug/favorite',jwt.verifyToken, async (req,res,next) => {
+router.post('/articles/:slug/favorite',jwt.verifyToken,(req,res,next) => {
 
     const slug = req.params.slug;
 
    console.log(req.user);
-    try {
-        const article = await Article.findOneAndUpdate({slug:slug},{$set : {'favorited':true},$inc : {favoritesCount : 1}},{new:true});
-        const user = await User.findByIdAndUpdate({_id:req.user.userId},{$push : {favoriteArticles : article.id}},{new:true});
-        res.json({article:article})
-    } catch (error) {
-        next(error)
-    }
+    Article.findOneAndUpdate({slug:slug},{$set : {'favorited':true},$inc : {"favoritesCount": 1}},{new:true},(err,article) => {
+       if(err) return next();
+       User.findByIdAndUpdate({_id : req.user.userId},{$push : {"favoriteArticles" : article.id }},(err,user) => {
+            if(err) return next();
+            res.json({article:article});
+
+       })
+
+
+    })
+
+
+
 })
 
 
 // unfavorite article
 
-router.delete('/articles/:slug/favorite',jwt.verifyToken, async (req,res,next) => {
+router.delete('/articles/:slug/favorite',jwt.verifyToken,(req,res,next) => {
   const slug = req.params.slug;
 
-   try {
-       const article = await Article.findOneAndUpdate({slug:slug},{$set : {'favorited':false},$inc : {favoritesCount: -1}},{new:true});
-       res.json({article:article})
-   } catch (error) {
-       next(error)
-   }
+  Article.findOneAndUpdate({slug:slug},{$set:{'favorited' : false},$inc : {'favoritesCount': -1}},{new:true},(err,article) => {
+    if(err) return next();
 
+    res.json({article:article})
+  })
 })
 
 
+  
 
 //get the list of tags
 
 router.get('/tags', async (req,res,next) => {
 
-  try {
-      const tags = await Article.distinct('tagList');
-      res.json({tags:tags})
-  } catch (error) {
-      next(error)
-  }
-
-
-})
-
-
-
-
+    try {
+        const tags = await Article.distinct('tagList');
+        res.json({tags:tags})
+    } catch (error) {
+        next(error)
+    }
+  
+  
+  })
 
 
 
