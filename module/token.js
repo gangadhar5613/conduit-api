@@ -21,7 +21,7 @@ const token = req.headers.authorization;
          next(error);
      }
  }else{
-     res.status(401).json({message:'Token required for validation'});
+     res.status(401).json({message:'Authentication required'});
  }
 
 }
