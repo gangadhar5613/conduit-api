@@ -19,6 +19,7 @@ mongoose.connect(process.env.MONGODB_URL,{useNewUrlParser:true,useUnifiedTopolog
 
 var app = express();
 
+
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
@@ -30,6 +31,8 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/',require('./routes/index'));
+// app.use('/api', createProxyMiddleware({ target: 'http://localhost:3000', changeOrigin: true }));
+
 app.use('/api',require('./routes/api'));
 
 

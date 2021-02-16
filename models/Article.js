@@ -14,7 +14,7 @@ const articleSchema = new Schema({
     favorited:{type:Boolean,default:false},
     favoritesCount:{type:Number,default:0},
     author:{type:Schema.Types.ObjectId,ref:'User'},
-    comments:[{type:Schema.Types.ObjectId,ref:'Article'}]
+    comments:[{type:Schema.Types.ObjectId,ref:'Comment'}]
 },{timestamps:true});
 
 

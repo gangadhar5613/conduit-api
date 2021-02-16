@@ -4,7 +4,6 @@ const User = require('../models/User');
 const Article = require('../models/Article');
 const Comment = require('../models/Comment');
 const jwt = require('../module/token');
-
 const mongooseSlugGenerator = require('mongoose-slug-generator');
 const mongoose = require('mongoose');
 const { findOne } = require('../models/User');
@@ -231,8 +230,6 @@ router.get('/articles/feed', jwt.verifyToken, async (req,res,next) => {
          const following = user.following;
          console.log(following)
          const feed = {};
-
-
             if(following.length == 0){
                 const articles = await Article.find({}).sort({_id:-1});
                 res.json({articles:articles});
@@ -343,12 +340,13 @@ function commentView(comment,author){
   
   // showing all comments
   
-  router.get('/articles/:slug/comments',jwt.verifyToken,async (req,res,next) => {
+  router.get('/articles/:slug/comments',async (req,res,next) => {
     const slug = req.params.slug;
   
     try {
-        const comments = await Article.findOne({slug:slug}).populate('comments')
-        res.json({comments:comments})
+        const article = await Article.findOne({slug:slug}).populate('comments')
+         
+        res.json({comments:article.comments})
     } catch (error) {
         next(error)
     }
@@ -430,20 +428,17 @@ router.get('/articles', async (req,res,next) => {
      console.log(author,tag,favoriteUser)
   
      try {
-          if(tag){
-             
-              
+          if(author || tag || favoriteUser){            
               const articles = await Article.find({tagList: {$all : [tag]}}).sort({_id:-1}).populate('author')
               articles.forEach((article) => {
                   filteredArticles.push(articleView(article,profileView(article.author)))
-              })
-            
-              
-  
+               })  
               if(author){
                   console.log(author)
                   const user = await User.findOne({username:author});
+
                   const articles = await Article.find({author:user._id}).sort({_id:-1}).populate('author');
+                  
                   articles.forEach((article) => {
                       filteredArticles.push(articleView(article,profileView(article.author)))
                   })
@@ -456,6 +451,7 @@ router.get('/articles', async (req,res,next) => {
                       filteredArticles.push(articleView(article,profileView(article.author)))
                   })
                    }
+                   
               res.json({articles:filteredArticles,articlesCount:filteredArticles.length})
               
                
@@ -465,6 +461,7 @@ router.get('/articles', async (req,res,next) => {
               articles.forEach((article) => {
                   filteredArticles.push(articleView(article,profileView(article.author)))
               })
+              
               res.json({articles:filteredArticles,articlesCount:filteredArticles.length})
           }
         
