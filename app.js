@@ -1,10 +1,10 @@
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
-var cors = require('cors')
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 const mongoose = require('mongoose');
+let cors = require('cors')
 
 require('dotenv').config();
 
